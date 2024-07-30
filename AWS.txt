@@ -1,0 +1,143 @@
+require("dotenv").config();
+const AWS = require("aws-sdk");
+const path = require("path");
+const productDb = require("../model/productModel");
+const { v4: uuidv4 } = require("uuid");
+const express = require("express");
+const router = express.Router();
+
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
+
+const uploadImageToS3 = (buffer, name) => {
+  const params = {
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: name,
+    Body: buffer,
+    ACL: "public-read",
+  };
+  return s3.upload(params).promise();
+};
+
+// Helper function to extract buffer from 64 string
+const decodeBase64Image = (dataString) => {
+  const matches = dataString.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) {
+    return new Error("invalid input string");
+  }
+  return Buffer.from(matches[2], "base64");
+};
+
+//Create a new Product
+
+exports.create = async (req, res) => {
+  try {
+    const requireFields = ["name", "categoryId", "price", "image"];
+    for (const filed of requireFields) {
+      if (!req.body[field]) {
+        return res.status(400).send({ message: `${filed} is required` });
+      }
+    }
+    const uploadPromises = req.body.images.map((image) => {
+      const buffer = decodeBase64Image(image);
+      const fileName = "image/${uuidv4}()${path.extname(image.name)}";
+      return uploadImageToS3(buffer, fileName).then((data) => data.location);
+    });
+    const productImage = await Promise.all(uploadPromises);
+    const product = new productDb({ ...req.body, image: productImage });
+
+    product
+      .save()
+      .then((data) => {
+        res.send(data);
+      })
+      .catch((err) => {
+        res.status(500).send({
+          messsage: err.message || "some Error Occurred In Creating Products",
+        });
+      });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Update Existing Product
+
+exports.update = async (req, res) => {
+  const id = req.params.id;
+  try {
+    const product = await productDb.findById(id);
+    if (!product) {
+      return res.status(400).send({ message: "Invalid Product ID" });
+    }
+
+    let productImages;
+    if (req.body.images && req.body.images.length > 0) {
+      const uploadPromises = req.body.images.map((image) => {
+        const buffer = decodeBase64Image(image);
+        const fileName = `images/${uuidv4()}${path.extname(image.name)}`;
+        return uploadImageToS3(buffer, fileName).then((data) => data.Location);
+      });
+      productImages = await Promise.all(uploadPromises);
+    } else {
+      productImages = product.images;
+    }
+
+    const updatedProduct = {
+      ...req.body,
+      images: productImages,
+    };
+
+    const updated = await productDb.findByIdAndUpdate(id, updatedProduct, {
+      new: true,
+    });
+
+    res.status(200).json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Reterive Single Product
+
+exports.findProducts = async (req, res) => {
+  const id = req.params.id;
+  productDb
+    .findById(id)
+    .then((data) => {
+      if (!data) {
+        res.status(404).send({ message: `No data with the id ${id}` });
+      } else {
+        res.send(data);
+      }
+    })
+    .catch((err) => {
+      res.status(500).json({ error: "Internal Server Error" + err });
+    });
+};
+
+// Delete Product
+
+exports.remove = async (req, res) => {
+  const id = req.params.id;
+  productDb
+    .findByAndDelete(id)
+    .then((data) => {
+      if (!data) {
+        res
+          .status(404)
+          .send({ message: `Cannot delete record with the id ${id}` });
+      } else {
+        res.send({ message: "Product Deleted Successfully" });
+      }
+    })
+    .catch((err) => {
+      res.status(500).send({ message: "Cannot Delete Product" + err });
+    });
+};
+
