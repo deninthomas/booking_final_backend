@@ -1,47 +1,48 @@
-Booking App Documentation
-Overview
-App Name: Booking App
-Technology Stack: React, Express, MongoDB, Node.js, Amazon S3 Bucket, Figma
+Backend
 
-Description:
-The Booking App is a platform that allows users to search and book services from various providers. It includes features for user authentication, product listing, service booking, and payment processing.
+API Endpoints
+Authentication Routes:
 
-Frontend
-Components
-Header:
+POST signupRoute.post("/signup", signUpController.signup);: Logs in a user.
+POST signupRoute.post("/login", signUpController.login); Registers a new user.
+Product Listing:
 
-Home Button: Navigates to the home page.
-Login/Register Buttons: Directs to login and registration pages.
-Search Bar: Allows users to search for services with filters for date and time.
-Navigation Bar: Appears when additional features are available.
-Login Page:
+GET /api/products: Retrieves a list of services.
+POST /api/products: Adds a new service.
+Product Details:
 
-Fields: Email, Password
-Button: Login
-Signup Page:
+GET /api/products/:id: Retrieves details of a specific service.
+Booking:
+productRoute.put("/update-product", uploadMiddleware.array('images'), productController.update);
+productRoute.delete("/delete-product/:id", productController.remove);
+productRoute.post("/create-product", uploadMiddleware.array('files', 3), productController.create);
+productRoute.get("/get-products", productController.getAllProducts);
+productRoute.post("/get-product", productController.getProducts);
 
-Fields: Name, Email, Password, Confirm Password
-Button: Signup
-Link: Login page redirect
-Dashboard:
+POST /api/bookings: Creates a new booking.
+billingRoute.post("/book-entity",verifyToken, bookingsController.createBooking);
+billingRoute.post("/get-bookings/:id",verifyToken, bookingsController.getBookings);
+Payment:
 
-Displays a list of available services (e.g., hotels).
-ViewPage:
+POST /api/payments: Processes payment for a booking.
+billingRoute.post("/get-billing-history",verifyToken, billingController.getBilling);
 
-Shows detailed information about a selected service.
-Booking Page:
+Database
 
-Fields: Date selection, service details, reviews
-Button: Book Service
-Payment Page:
 
-Summary: Service details and cost
-Fields: Card data for payment
-Dashboard Product Adding Page:
+MongoDB: Used for storing user data, service details, booking information, and payment data.
+AWS S3 Bucket: Used for uploading and storing images associated with services.
+Key Features
+User Authentication: Login and signup functionality.
+Database Management: Handling of service listings, user profiles, and bookings.
+Payment Data Storing: Storing payment information securely.
+Image Uploading and Storing: Uploading images to AWS S3 and linking to MongoDB.
+Billing Data Storing: Storing billing details for transactions.
+User Profile Management: Managing user information and preferences.
+Product Listing: Displaying available services for booking.
 
-Fields: Service details (e.g., hotel)
-Button: Add Product
-Image Upload: Save image to AWS S3 and link to MongoDB
-Booking Confirmation Page:
+State Management
+Redux: Used for managing the state of the application, including user authentication status, service data, and booking details.
 
-Details: Booking summary and confirmation
+API Handling
+Interceptor: Handles API requests and responses, ensuring proper communication between the frontend and backend.
